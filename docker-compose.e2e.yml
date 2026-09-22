@@ -48,6 +48,7 @@ services:
       CAEP_ISSUER: ${CAEP_ISSUER:-}
       CAEP_AUDIENCE: ${CAEP_AUDIENCE:-humifortis-enforcement-gateway}
       CAEP_TENANT_ID: ${CAEP_TENANT_ID:-demo-tenant}
+      CAEP_JWKS_URL: ${CAEP_JWKS_URL:-http://host.docker.internal:8080/.well-known/jwks.json}
       CAEP_PUBLIC_KEY_PEM: ${CAEP_PUBLIC_KEY_PEM:-}
     depends_on:
       humifortis-core:

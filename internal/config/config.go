@@ -28,6 +28,7 @@ type Config struct {
 	CAEPIssuer          string
 	CAEPAudience        string
 	CAEPTenantID        string
+	CAEPJWKSURL         string
 	CAEPPublicKeyPEM    string
 	CAEPClockSkew       time.Duration
 	ReplayTTL           time.Duration
@@ -45,6 +46,7 @@ func Load() (Config, error) {
 		CAEPAudience:        env("CAEP_AUDIENCE", "humifortis-enforcement-gateway"),
 		CAEPPublicKeyPEM:    os.Getenv("CAEP_PUBLIC_KEY_PEM"),
 		CAEPTenantID:        os.Getenv("CAEP_TENANT_ID"),
+		CAEPJWKSURL:         os.Getenv("CAEP_JWKS_URL"),
 		TrustedProxyCIDRs:   split(env("GATEWAY_TRUSTED_PROXY_CIDRS", "127.0.0.1/32,::1/128")),
 	}
 	var err error

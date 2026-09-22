@@ -4,12 +4,14 @@ import (
 	"context"
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"math/big"
 	"net"
 	"net/http"
 	"os"
@@ -50,7 +52,7 @@ func main() {
 	client := humifortis.NewClient(cfg.HumifortisURL, cfg.HumifortisAPIKey, cfg.HumifortisTimeout)
 	evaluator := enforcement.NewEvaluator(client, store, resilience.NewCircuit(5, 5*time.Second), cfg.FailPolicy, cfg.DecisionCacheTTL)
 	metricsCollector := &metrics.Metrics{}
-	publicKey, keyErr := parsePublicKey(cfg.CAEPPublicKeyPEM)
+	publicKey, keyErr := loadPublicKey(cfg)
 	if keyErr != nil && cfg.CAEPPublicKeyPEM != "" {
 		slog.Error("CAEP public key invalid", "error", keyErr)
 		os.Exit(1)
@@ -144,6 +146,35 @@ func readyHandler(store state.Store, cfg config.Config) http.HandlerFunc {
 		writeJSON(w, 200, map[string]string{"status": "ready"})
 	}
 }
+func loadPublicKey(cfg config.Config) (*rsa.PublicKey, error) {
+	if cfg.CAEPPublicKeyPEM == "" && cfg.CAEPJWKSURL != "" {
+		resp, err := http.Get(cfg.CAEPJWKSURL)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		var document struct {
+			Keys []struct {
+				Kty string `json:"kty"`
+				N   string `json:"n"`
+				E   int    `json:"e"`
+			} `json:"keys"`
+		}
+		if err := json.NewDecoder(resp.Body).Decode(&document); err != nil {
+			return nil, err
+		}
+		if len(document.Keys) == 0 || document.Keys[0].Kty != "RSA" {
+			return nil, fmt.Errorf("JWKS contains no RSA key")
+		}
+		modulus, err := base64.RawURLEncoding.DecodeString(document.Keys[0].N)
+		if err != nil {
+			return nil, err
+		}
+		return &rsa.PublicKey{N: new(big.Int).SetBytes(modulus), E: document.Keys[0].E}, nil
+	}
+	return parsePublicKey(cfg.CAEPPublicKeyPEM)
+}
+
 func parsePublicKey(raw string) (*rsa.PublicKey, error) {
 	block, _ := pem.Decode([]byte(raw))
 	if block == nil {
