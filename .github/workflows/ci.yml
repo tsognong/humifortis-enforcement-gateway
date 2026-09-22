@@ -1,0 +1,82 @@
+name: Enforcement Gateway CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: gateway-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go quality gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Verify formatting
+        shell: bash
+        run: |
+          files="$(gofmt -l .)"
+          if [[ -n "$files" ]]; then
+            echo "Unformatted Go files:"
+            echo "$files"
+            exit 1
+          fi
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Test
+        run: go test ./... -count=1
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Build
+        run: go build -trimpath -ldflags="-s -w" ./cmd/gateway
+
+  container:
+    name: Container and Compose validation
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: go
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate Compose configuration
+        run: docker compose -f docker-compose.e2e.yml config -q
+
+      - name: Build gateway image
+        run: docker build --tag humifortis-enforcement-gateway:ci .
+
+      - name: Smoke test gateway liveness
+        run: |
+          docker run --detach --name gateway-ci \
+            --env PORT=8081 \
+            --env HUMIFORTIS_URL=http://127.0.0.1:1/api/v1 \
+            --publish 18081:8081 \
+            humifortis-enforcement-gateway:ci
+          trap 'docker logs gateway-ci || true; docker rm --force gateway-ci || true' EXIT
+          for attempt in {1..20}; do
+            if curl --fail --silent http://127.0.0.1:18081/health; then
+              exit 0
+            fi
+            sleep 1
+          done
+          exit 1
