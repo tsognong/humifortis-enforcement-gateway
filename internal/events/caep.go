@@ -40,8 +40,14 @@ func (r *Receiver) Process(raw string) (state.Constraint, error) {
 		return state.Constraint{}, fmt.Errorf("invalid signed event")
 	}
 	claims, ok := token.Claims.(*setClaims)
-	if !ok || claims.Issuer != r.cfg.CAEPIssuer || claims.ID == "" {
-		return state.Constraint{}, fmt.Errorf("issuer or jti invalid")
+	if !ok {
+		return state.Constraint{}, fmt.Errorf("claims type invalid")
+	}
+	if claims.Issuer != r.cfg.CAEPIssuer {
+		return state.Constraint{}, fmt.Errorf("issuer mismatch: got %q want %q", claims.Issuer, r.cfg.CAEPIssuer)
+	}
+	if claims.ID == "" {
+		return state.Constraint{}, fmt.Errorf("jti missing")
 	}
 	if claims.IssuedAt == nil || time.Since(claims.IssuedAt.Time) > r.cfg.CAEPClockSkew+5*time.Minute {
 		return state.Constraint{}, fmt.Errorf("event outside replay window")

@@ -39,6 +39,11 @@ func (e *Evaluator) Evaluate(ctx context.Context, input auth.Context) (Result, e
 	if constraint, err := e.store.Get(ctx, key); err == nil && constraint != nil {
 		return Result{Action: constraint.Action, DecisionID: constraint.DecisionID, RequiredAssurance: constraint.RequiredAssurance, ChallengeID: constraint.ChallengeID}, nil
 	}
+	if input.SessionID != "" {
+		if constraint, err := e.store.Get(ctx, input.TenantID+":"+input.Subject); err == nil && constraint != nil {
+			return Result{Action: constraint.Action, DecisionID: constraint.DecisionID, RequiredAssurance: constraint.RequiredAssurance, ChallengeID: constraint.ChallengeID}, nil
+		}
+	}
 	if !e.circuit.Allow() {
 		return e.unavailable(), nil
 	}

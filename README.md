@@ -36,6 +36,13 @@ starts Redis, Humifortis Core, the gateway, an NGINX PEP, and a protected demo
 upstream. The Core source is expected beside this repository at
 `../humifortis-core`; override `HUMIFORTIS_CORE_CONTEXT` when needed.
 
+For the local sidecar gate against an already-running Core E2E stack, use
+[gateway-gate.ps1](e2e/gateway-gate.ps1). It registers a temporary CAEP stream,
+checks a baseline request, drives eight real `AUTH_LOGIN_FAILED` events through
+Core `/evaluate`, waits for the signed CAEP constraint, and verifies NGINX
+returns `401 CHALLENGE` or `403 BLOCK`. The temporary stream is deleted during
+teardown unless `-Keep` is supplied.
+
 ```bash
 docker compose -f docker-compose.e2e.yml up --build
 curl -i http://localhost:8081/protected

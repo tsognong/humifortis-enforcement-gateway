@@ -53,7 +53,7 @@ func main() {
 	evaluator := enforcement.NewEvaluator(client, store, resilience.NewCircuit(5, 5*time.Second), cfg.FailPolicy, cfg.DecisionCacheTTL)
 	metricsCollector := &metrics.Metrics{}
 	publicKey, keyErr := loadPublicKey(cfg)
-	if keyErr != nil && cfg.CAEPPublicKeyPEM != "" {
+	if keyErr != nil && (cfg.CAEPPublicKeyPEM != "" || cfg.CAEPJWKSURL != "") {
 		slog.Error("CAEP public key invalid", "error", keyErr)
 		os.Exit(1)
 	}
@@ -126,6 +126,7 @@ func caepHandler(receiver *events.Receiver, m *metrics.Metrics) http.HandlerFunc
 		}
 		_, err = receiver.Process(string(raw))
 		if err != nil {
+			slog.Warn("caep_event_rejected", "error", err.Error())
 			writeJSON(w, 400, map[string]string{"error": err.Error()})
 			return
 		}
@@ -155,9 +156,9 @@ func loadPublicKey(cfg config.Config) (*rsa.PublicKey, error) {
 		defer resp.Body.Close()
 		var document struct {
 			Keys []struct {
-				Kty string `json:"kty"`
-				N   string `json:"n"`
-				E   int    `json:"e"`
+				Kty string          `json:"kty"`
+				N   string          `json:"n"`
+				E   json.RawMessage `json:"e"`
 			} `json:"keys"`
 		}
 		if err := json.NewDecoder(resp.Body).Decode(&document); err != nil {
@@ -170,9 +171,33 @@ func loadPublicKey(cfg config.Config) (*rsa.PublicKey, error) {
 		if err != nil {
 			return nil, err
 		}
-		return &rsa.PublicKey{N: new(big.Int).SetBytes(modulus), E: document.Keys[0].E}, nil
+		exponent, err := jwkExponent(document.Keys[0].E)
+		if err != nil {
+			return nil, err
+		}
+		return &rsa.PublicKey{N: new(big.Int).SetBytes(modulus), E: exponent}, nil
 	}
 	return parsePublicKey(cfg.CAEPPublicKeyPEM)
+}
+
+func jwkExponent(raw json.RawMessage) (int, error) {
+	var encoded string
+	if err := json.Unmarshal(raw, &encoded); err == nil {
+		value, err := base64.RawURLEncoding.DecodeString(encoded)
+		if err != nil || len(value) == 0 {
+			return 0, fmt.Errorf("invalid JWKS RSA exponent")
+		}
+		exponent := 0
+		for _, byteValue := range value {
+			exponent = exponent<<8 | int(byteValue)
+		}
+		return exponent, nil
+	}
+	var numeric int
+	if err := json.Unmarshal(raw, &numeric); err != nil {
+		return 0, fmt.Errorf("invalid JWKS RSA exponent: %w", err)
+	}
+	return numeric, nil
 }
 
 func parsePublicKey(raw string) (*rsa.PublicKey, error) {
