@@ -2,6 +2,8 @@ package state
 
 import (
 	"context"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 )
@@ -25,15 +27,36 @@ func TestMemoryConstraintExpires(t *testing.T) {
 
 func TestMemoryReplayProtection(t *testing.T) {
 	store := NewMemory()
-	seen, err := store.Seen(context.Background(), "jti-1", time.Minute)
-	if err != nil || seen {
-		t.Fatalf("expected unseen event")
+	first, err := store.FirstUse(context.Background(), "jti-1", time.Minute)
+	if err != nil || !first {
+		t.Fatalf("the first use is first")
 	}
-	if err := store.MarkSeen(context.Background(), "jti-1", time.Minute); err != nil {
-		t.Fatal(err)
+	first, err = store.FirstUse(context.Background(), "jti-1", time.Minute)
+	if err != nil || first {
+		t.Fatalf("the second use is a replay")
 	}
-	seen, err = store.Seen(context.Background(), "jti-1", time.Minute)
-	if err != nil || !seen {
-		t.Fatalf("expected replay marker")
+	first, _ = store.FirstUse(context.Background(), "jti-2", 20*time.Millisecond)
+	time.Sleep(40 * time.Millisecond)
+	if again, _ := store.FirstUse(context.Background(), "jti-2", time.Minute); !first || !again {
+		t.Fatalf("a mark expires with its ttl")
+	}
+}
+
+func TestMemoryFirstUseIsAtomic(t *testing.T) {
+	store := NewMemory()
+	var wins int32
+	var wg sync.WaitGroup
+	for i := 0; i < 50; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if ok, _ := store.FirstUse(context.Background(), "same", time.Minute); ok {
+				atomic.AddInt32(&wins, 1)
+			}
+		}()
+	}
+	wg.Wait()
+	if wins != 1 {
+		t.Fatalf("exactly one of 50 racing requests is first, got %d", wins)
 	}
 }

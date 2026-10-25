@@ -14,10 +14,17 @@ services:
     environment:
       PORT: "8081"
       HUMIFORTIS_URL: ${HUMIFORTIS_URL:-http://host.docker.internal:8080/api/v1}
-      HUMIFORTIS_API_KEY: ${HUMIFORTIS_API_KEY:-hf_e2e_test_runner_2026}
+      # the key of the gateway: it needs the scope aauth:verify to read the agent providers and to write agent:aauth: identities
+      HUMIFORTIS_API_KEY: ${HUMIFORTIS_API_KEY:-hf_e2e_aauth_gateway_2026}
       HUMIFORTIS_TIMEOUT: 100ms
       HUMIFORTIS_FAIL_POLICY: fail_closed
       REDIS_URL: redis://redis:6379
+      AAUTH_ENABLED: "true"
+      AAUTH_TENANT_ID: ${CAEP_TENANT_ID:-d4f7a2c1-8b3e-4f6a-9c1d-2e5f8a7b3c4d}
+      AAUTH_PROVIDERS_REFRESH: 2s
+      # lab provider: a private address and a certificate of its own, never in production
+      AAUTH_ALLOW_PRIVATE_NETWORKS: "true"
+      AAUTH_ROOT_CAS_FILE: /lab/provider.crt
       STATE_TTL: 5m
       DECISION_CACHE_TTL: 5s
       GATEWAY_TRUSTED_PROXY_CIDRS: 0.0.0.0/0,::/0
@@ -26,7 +33,10 @@ services:
       CAEP_TENANT_ID: ${CAEP_TENANT_ID:-d4f7a2c1-8b3e-4f6a-9c1d-2e5f8a7b3c4d}
       CAEP_JWKS_URL: ${CAEP_JWKS_URL:-http://host.docker.internal:8080/.well-known/jwks.json}
     extra_hosts: ["host.docker.internal:host-gateway"]
+    volumes: ["./e2e/aauth/lab/provider.crt:/lab/provider.crt:ro"]
     depends_on:
+      agent-provider:
+        condition: service_started
       redis:
         condition: service_healthy
     ports: ["18081:8081"]
@@ -35,6 +45,17 @@ services:
       interval: 3s
       timeout: 2s
       retries: 15
+
+  # an agent provider as a customer would run one: its metadata and keys over HTTPS, at a name of its own
+  agent-provider:
+    image: nginx:1.27-alpine
+    networks:
+      default:
+        aliases: [agents.lab.test]
+    volumes:
+      - ./e2e/aauth/provider/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./e2e/aauth/provider/www:/www:ro
+      - ./e2e/aauth/lab:/lab:ro
 
   demo:
     build: ./e2e/demo

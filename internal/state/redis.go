@@ -51,12 +51,8 @@ func (r *Redis) Put(ctx context.Context, key string, value Constraint) error {
 func (r *Redis) Delete(ctx context.Context, key string) error {
 	return r.client.Del(ctx, r.key("constraint:"+key)).Err()
 }
-func (r *Redis) Seen(ctx context.Context, key string, _ time.Duration) (bool, error) {
-	count, err := r.client.Exists(ctx, r.key("replay:"+key)).Result()
-	return count > 0, err
-}
-func (r *Redis) MarkSeen(ctx context.Context, key string, ttl time.Duration) error {
-	return r.client.Set(ctx, r.key("replay:"+key), "1", ttl).Err()
+func (r *Redis) FirstUse(ctx context.Context, key string, ttl time.Duration) (bool, error) {
+	return r.client.SetNX(ctx, r.key("replay:"+key), "1", ttl).Result()
 }
 func (r *Redis) Ping(ctx context.Context) error {
 	if r == nil || r.client == nil {

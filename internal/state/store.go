@@ -21,8 +21,9 @@ type Store interface {
 	Get(context.Context, string) (*Constraint, error)
 	Put(context.Context, string, Constraint) error
 	Delete(context.Context, string) error
-	Seen(context.Context, string, time.Duration) (bool, error)
-	MarkSeen(context.Context, string, time.Duration) error
+	// FirstUse marks the key for ttl and reports whether it had not been marked: ONE atomic operation, so two requests (or
+	// two gateway instances) racing on the same replay key cannot both be the first.
+	FirstUse(context.Context, string, time.Duration) (bool, error)
 	Ping(context.Context) error
 }
 type Memory struct {
@@ -60,16 +61,21 @@ func (m *Memory) Delete(_ context.Context, key string) error {
 	m.mu.Unlock()
 	return nil
 }
-func (m *Memory) Seen(_ context.Context, key string, _ time.Duration) (bool, error) {
+func (m *Memory) FirstUse(_ context.Context, key string, ttl time.Duration) (bool, error) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	expiry, ok := m.replay[key]
-	return ok && time.Now().Before(expiry), nil
-}
-func (m *Memory) MarkSeen(_ context.Context, key string, ttl time.Duration) error {
-	m.mu.Lock()
-	m.replay[key] = time.Now().Add(ttl)
-	m.mu.Unlock()
-	return nil
+	now := time.Now()
+	if expiry, ok := m.replay[key]; ok && now.Before(expiry) {
+		return false, nil
+	}
+	if len(m.replay) > 100000 { // bounded: a flood of distinct keys cannot grow it without limit
+		for k, e := range m.replay {
+			if now.After(e) {
+				delete(m.replay, k)
+			}
+		}
+	}
+	m.replay[key] = now.Add(ttl)
+	return true, nil
 }
 func (m *Memory) Ping(context.Context) error { return nil }

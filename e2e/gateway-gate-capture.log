@@ -1,0 +1,110 @@
+Using Core CAEP issuer: http://humifortis:8080/tenants/d4f7a2c1-8b3e-4f6a-9c1d-2e5f8a7b3c4d
+Starting gateway gate against Core: http://localhost:8080/api/v1
+#1 [internal] load local bake definitions
+#1 reading from stdin 1.25kB 0.0s done
+#1 DONE 0.0s
+
+#2 [gateway internal] load build definition from Dockerfile
+#2 transferring dockerfile: 412B 0.0s done
+#2 DONE 0.0s
+
+#3 [demo internal] load build definition from Dockerfile
+#3 transferring dockerfile: 122B done
+#3 DONE 0.0s
+
+#4 [demo internal] load metadata for docker.io/library/nginx:1.27-alpine
+#4 DONE 0.0s
+
+#5 [demo internal] load .dockerignore
+#5 transferring context: 2B done
+#5 DONE 0.0s
+
+#6 [demo internal] load build context
+#6 transferring context: 32B done
+#6 DONE 0.0s
+
+#7 [demo 1/2] FROM docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#7 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10
+#7 resolve docker.io/library/nginx:1.27-alpine@sha256:65645c7bb6a0661892a8b03b89d0743208a18dd2f3f17a54ef4b76fb8e2f2a10 0.0s done
+#7 DONE 0.0s
+
+#8 [demo 2/2] COPY index.html /usr/share/nginx/html/index.html
+#8 CACHED
+
+#9 [demo] exporting to image
+#9 exporting layers 0.0s done
+#9 exporting manifest sha256:d73280cdc1235f7341c13448a6b35c04ea4c7fbfabb5c063c4fb268bdd1b49f5 done
+#9 exporting config sha256:7e6d121167cd5fc73f14f0d82edcd6f60b58513a4ea117ca8f8570c670b6589e done
+#9 exporting attestation manifest sha256:77bd7ddc22f6b37434ddfeec63eeb0cae8a7a751d591522d9c669d4422c1dd32 0.0s done
+#9 exporting manifest list sha256:cf114beba9c22cf468d440611a9fbb9b5b83320498573cbdb297d43231e4a0d6
+#9 ...
+
+#10 [gateway internal] load metadata for docker.io/library/alpine:3.22
+#10 DONE 0.2s
+
+#11 [gateway internal] load metadata for docker.io/library/golang:1.26-alpine
+#11 DONE 0.3s
+
+#12 [gateway internal] load .dockerignore
+#12 transferring context: 2B done
+#12 DONE 0.0s
+
+#9 [demo] exporting to image
+#9 exporting manifest list sha256:cf114beba9c22cf468d440611a9fbb9b5b83320498573cbdb297d43231e4a0d6 0.0s done
+#9 naming to docker.io/library/humifortis-enforcement-gateway-demo:latest done
+#9 unpacking to docker.io/library/humifortis-enforcement-gateway-demo:latest 0.0s done
+#9 DONE 0.2s
+
+#13 [gateway internal] load build context
+#13 DONE 0.0s
+
+#14 [gateway stage-1 1/3] FROM docker.io/library/alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+#14 resolve docker.io/library/alpine:3.22@sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8 0.1s done
+#14 DONE 0.1s
+
+#15 [gateway build 1/6] FROM docker.io/library/golang:1.26-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c
+#15 resolve docker.io/library/golang:1.26-alpine@sha256:8ac98ca534ac3f51e1f420a1dd2c15e74c75cfa0f23f3ad27eb5d7236c349a0c 0.1s done
+#15 DONE 0.1s
+
+#13 [gateway internal] load build context
+#13 transferring context: 12.90kB 0.1s done
+#13 DONE 0.1s
+
+#16 [gateway build 2/6] WORKDIR /src
+#16 CACHED
+
+#17 [gateway build 3/6] COPY go.mod ./
+#17 CACHED
+
+#18 [gateway build 4/6] RUN go mod download
+#18 CACHED
+
+#19 [demo] resolving provenance for metadata file
+#19 DONE 0.0s
+
+#20 [gateway build 5/6] COPY . .
+#20 DONE 0.2s
+
+#21 [gateway build 6/6] RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -trimpath -ldflags='-s -w' -o /out/gateway ./cmd/gateway
+#21 DONE 19.9s
+
+#22 [gateway stage-1 2/3] RUN addgroup -S gateway && adduser -S gateway -G gateway
+#22 CACHED
+
+#23 [gateway stage-1 3/3] COPY --from=build /out/gateway /gateway
+#23 CACHED
+
+#24 [gateway] exporting to image
+#24 exporting layers done
+#24 exporting manifest sha256:3bdd6c6dda58aad801b42cd2a409d0d52a576f0aa0a3a178c02f7443f4e92a74 done
+#24 exporting config sha256:e9595ff29b2b8358fef9396237cc0b3d7535ed7ecf99b190e3618ab846a26e5b done
+#24 exporting attestation manifest sha256:f0b2dbd2d73ee2e93f792545d0a132ecc7795dd137c249ce56227bf5e42ace2f 0.0s done
+#24 exporting manifest list sha256:a2a214dc048804ff5f322c045a70802f784bf8631aba3f6479534cc614595973 0.0s done
+#24 naming to docker.io/library/humifortis-enforcement-gateway-gateway:latest
+#24 naming to docker.io/library/humifortis-enforcement-gateway-gateway:latest done
+#24 unpacking to docker.io/library/humifortis-enforcement-gateway-gateway:latest 0.0s done
+#24 DONE 0.2s
+
+#25 [gateway] resolving provenance for metadata file
+#25 DONE 0.0s
+Registered Core CAEP stream 1e014856-25eb-4662-aba5-7b5dfbdafda6 -> http://host.docker.internal:18081/ssf/caep/events

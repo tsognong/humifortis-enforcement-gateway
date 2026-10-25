@@ -1,0 +1,8 @@
+{
+  "crv": "Ed25519",
+  "d": "jmBOokA7lnvC3XReXkDVIEqcZXFV8nnOQvfHsBpg2Nk",
+  "x": "4JOm_BWxTRVuvY4Q64csj8fiIBbQmAkKu2wvhKKTL2Q",
+  "kty": "OKP",
+  "alg": "Ed25519",
+  "kid": "lab-provider-1"
+}

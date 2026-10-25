@@ -1,0 +1,25 @@
+ Image humifortis-enforcement-gateway-gateway Building 
+ Image humifortis-enforcement-gateway-demo Building 
+ Image humifortis-enforcement-gateway-gateway Built 
+ Image humifortis-enforcement-gateway-demo Built 
+ Container humifortis-enforcement-gateway-redis-1 Running 
+ Container humifortis-enforcement-gateway-nginx-1 Running 
+ Container humifortis-enforcement-gateway-demo-1 Recreate 
+ Container humifortis-enforcement-gateway-gateway-1 Recreate 
+ Container humifortis-enforcement-gateway-gateway-1 Recreated 
+ Container humifortis-enforcement-gateway-demo-1 Recreated 
+ Container humifortis-enforcement-gateway-demo-1 Starting 
+ Container humifortis-enforcement-gateway-redis-1 Waiting 
+ Container humifortis-enforcement-gateway-demo-1 Started 
+ Container humifortis-enforcement-gateway-redis-1 Healthy 
+ Container humifortis-enforcement-gateway-gateway-1 Starting 
+ Container humifortis-enforcement-gateway-gateway-1 Started 
+ Container humifortis-enforcement-gateway-gateway-1 Waiting 
+ Container humifortis-enforcement-gateway-gateway-1 Healthy 
+Expected baseline protected request to be allowed, got 502 decision=
+Au caractäre C:\Users\USER\OneDrive\Documents\workspace\humifortis-enforcement-gateway\e2e\gateway-gate.ps1:52 : 5
++     throw "Expected baseline protected request to be allowed, got $($ ...
++     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : OperationStopped: (Expected baseli...t 502 decision=:String) [], RuntimeException
+    + FullyQualifiedErrorId : Expected baseline protected request to be allowed, got 502 decision=
+ 

@@ -50,8 +50,15 @@ func main() {
 		store = redisStore
 	}
 	client := humifortis.NewClient(cfg.HumifortisURL, cfg.HumifortisAPIKey, cfg.HumifortisTimeout)
-	evaluator := enforcement.NewEvaluator(client, store, resilience.NewCircuit(5, 5*time.Second), cfg.FailPolicy, cfg.DecisionCacheTTL)
+	evaluator := enforcement.NewEvaluator(client, store, resilience.NewCircuit(5, 5*time.Second), cfg.FailPolicy, cfg.DecisionCacheTTL).WithAgentFailPolicy(cfg.AAuthFailPolicy)
 	metricsCollector := &metrics.Metrics{}
+	background, stopBackground := context.WithCancel(context.Background())
+	defer stopBackground()
+	agents, err := newAgentAuth(background, cfg, client, store, metricsCollector)
+	if err != nil {
+		slog.Error("aauth configuration failed", "error", err)
+		os.Exit(1)
+	}
 	publicKey, keyErr := loadPublicKey(cfg)
 	if keyErr != nil && (cfg.CAEPPublicKeyPEM != "" || cfg.CAEPJWKSURL != "") {
 		slog.Error("CAEP public key invalid", "error", keyErr)
@@ -59,7 +66,7 @@ func main() {
 	}
 	receiver := events.NewReceiver(cfg, publicKey, store)
 	mux := http.NewServeMux()
-	mux.HandleFunc("/auth", authHandler(evaluator, proxies, cfg, metricsCollector))
+	mux.HandleFunc("/auth", authHandler(evaluator, proxies, cfg, metricsCollector, agents))
 	mux.HandleFunc("/health", func(w http.ResponseWriter, _ *http.Request) {
 		writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 	})
@@ -82,9 +89,14 @@ func main() {
 	_ = server.Shutdown(ctx)
 }
 
-func authHandler(evaluator *enforcement.Evaluator, proxies []*net.IPNet, cfg config.Config, m *metrics.Metrics) http.HandlerFunc {
+func authHandler(evaluator *enforcement.Evaluator, proxies []*net.IPNet, cfg config.Config, m *metrics.Metrics, agents *agentAuth) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		m.AuthRequests()
+		if agents != nil && auth.HasAAuthProof(r) {
+			// a request that presents an AAuth proof is judged by it alone: never downgraded to the headers
+			agents.handle(w, r, evaluator, proxies)
+			return
+		}
 		input, err := auth.FromRequest(r, cfg.TrustedHeaderSecret, proxies)
 		if err != nil {
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"error": "invalid authorization context"})
@@ -108,6 +120,8 @@ func authHandler(evaluator *enforcement.Evaluator, proxies []*net.IPNet, cfg con
 			w.Header().Set("X-Humifortis-Decision-ID", result.DecisionID)
 			w.Header().Set("X-Humifortis-Challenge-ID", result.ChallengeID)
 			w.Header().Set("X-Humifortis-Required-Assurance", result.RequiredAssurance)
+			// the standard step-up of an API (RFC 9470): the client sends the person back to the authorization server
+			w.Header().Set("WWW-Authenticate", enforcement.ChallengeHeader(result.RequiredAssurance, 0))
 			writeJSON(w, http.StatusUnauthorized, map[string]string{"decision": "CHALLENGE"})
 		}
 	}

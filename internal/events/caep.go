@@ -52,15 +52,12 @@ func (r *Receiver) Process(raw string) (state.Constraint, error) {
 	if claims.IssuedAt == nil || time.Since(claims.IssuedAt.Time) > r.cfg.CAEPClockSkew+5*time.Minute {
 		return state.Constraint{}, fmt.Errorf("event outside replay window")
 	}
-	seen, err := r.store.Seen(context.Background(), claims.ID, r.cfg.ReplayTTL)
+	first, err := r.store.FirstUse(context.Background(), claims.ID, r.cfg.ReplayTTL)
 	if err != nil {
 		return state.Constraint{}, err
 	}
-	if seen {
+	if !first {
 		return state.Constraint{}, fmt.Errorf("replay detected")
-	}
-	if err := r.store.MarkSeen(context.Background(), claims.ID, r.cfg.ReplayTTL); err != nil {
-		return state.Constraint{}, err
 	}
 	subject := claims.SubID["sub"]
 	if subject == "" {
